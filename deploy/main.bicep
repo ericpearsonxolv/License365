@@ -1,17 +1,15 @@
 // ============================================================================
-//  Platform Reporting Dashboard PoC - Azure Deployment via Bicep
+// Platform Reporting Dashboard PoC - Azure Deployment via Bicep
 //
-//  This Bicep template provisions all required Azure resources for running
-//  the FoC Licensing dashboard proof‑of‑concept.  It deploys:
-//    * An App Service Plan and Function App for API endpoints
-//    * A Cosmos DB account with database and two containers (userSnapshots, skus)
-//    * An Azure Cache for Redis instance
-//    * A Storage Account for static website hosting
+// Deploys:
+// * App Service Plan and Function App for API endpoints
+// * Cosmos DB account with database and two containers (userSnapshots, skus)
+// * Azure Cache for Redis
+// * Storage Account for static website hosting (static website enabled after deployment)
 //
-//  Environment‑specific settings (tenant ID, names) are parameterized.
 // ============================================================================
 
-@description('Azure AD tenant ID used by the licensing functions for Graph API calls.')
+@description('Azure AD tenant ID for Graph API calls.')
 param azureTenantId string
 
 @description('Name prefix applied to resources (letters and numbers only).')
@@ -44,7 +42,7 @@ var functionAppName    = toLower('${prefix}func${unique}')
 var cosmosAccountName  = toLower('${prefix}cosmos${unique}')
 var redisName          = toLower('${prefix}redis${unique}')
 
-// Plan for the Function App (serverless consumption)
+// App Service Plan (Consumption)
 resource appPlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   name: '${prefix}-plan'
   location: location
@@ -73,7 +71,7 @@ resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2023-04-15' = {
   }
 }
 
-// Cosmos SQL database as child of the account
+// Cosmos SQL database (child resource)
 resource cosmosDb 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023-04-15' = {
   parent: cosmos
   name: cosmosDbName
@@ -84,7 +82,7 @@ resource cosmosDb 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023-04-15
   }
 }
 
-// User snapshots container as child of the SQL database
+// User snapshots container (child of cosmosDb)
 resource userContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
   parent: cosmosDb
   name: userContainerName
@@ -92,9 +90,7 @@ resource userContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/conta
     resource: {
       id: userContainerName
       partitionKey: {
-        paths: [
-          '/tenantId'
-        ]
+        paths: ['/tenantId']
         kind: 'Hash'
       }
     }
@@ -102,7 +98,7 @@ resource userContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/conta
   }
 }
 
-// SKU data container as child of the SQL database
+// SKU data container (child of cosmosDb)
 resource skuContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
   parent: cosmosDb
   name: skuContainerName
@@ -110,9 +106,7 @@ resource skuContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/contai
     resource: {
       id: skuContainerName
       partitionKey: {
-        paths: [
-          '/tenantId'
-        ]
+        paths: ['/tenantId']
         kind: 'Hash'
       }
     }
@@ -120,7 +114,7 @@ resource skuContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/contai
   }
 }
 
-// Storage account for static website (to be enabled after deployment via CLI)
+// Storage account for static website
 resource storage 'Microsoft.Storage/storageAccounts@2022-09-01' = {
   name: storageAccountName
   location: location
@@ -131,7 +125,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2022-09-01' = {
   properties: {}
 }
 
-// Redis cache instance
+// Redis cache
 resource redis 'Microsoft.Cache/Redis@2023-08-01' = {
   name: redisName
   location: location
@@ -146,11 +140,11 @@ resource redis 'Microsoft.Cache/Redis@2023-08-01' = {
   }
 }
 
-// Keys for Cosmos and Redis (called once)
-var cosmosKeys = listKeys(cosmos.id, '2023-04-15')
-var redisKeys  = listKeys(redis.id, '2023-08-01')
+// Resource symbol reference for keys (fix linter warnings)
+var cosmosKeys = cosmos.listKeys()
+var redisKeys  = redis.listKeys()
 
-// Function App
+// Function App for APIs
 resource functionApp 'Microsoft.Web/sites@2022-09-01' = {
   name: functionAppName
   location: location
@@ -159,19 +153,14 @@ resource functionApp 'Microsoft.Web/sites@2022-09-01' = {
     serverFarmId: appPlan.id
     siteConfig: {
       appSettings: [
-        // Runtime settings
         { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'node' }
         { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '1' }
-
-        // Environment variables consumed by the FoC APIs
         { name: 'AZURE_TENANT_ID', value: azureTenantId }
         { name: 'COSMOS_DB_ENDPOINT', value: cosmos.properties.documentEndpoint }
         { name: 'COSMOS_DB_KEY', value: cosmosKeys.primaryMasterKey }
         { name: 'COSMOS_DB_DATABASE', value: cosmosDbName }
         { name: 'COSMOS_DB_CONTAINER', value: userContainerName }
         { name: 'COSMOS_SKU_CONTAINER', value: skuContainerName }
-
-        // Redis URL using interpolation
         {
           name: 'REDIS_URL'
           value: 'rediss://:${redisKeys.primaryKey}@${redis.properties.hostName}:6380'
@@ -181,8 +170,8 @@ resource functionApp 'Microsoft.Web/sites@2022-09-01' = {
   }
 }
 
-// Outputs to help publish and test the deployment
+// Outputs for post-deployment actions
 output functionAppName string = functionAppName
 output functionAppUrl  string = 'https://${functionAppName}.azurewebsites.net'
 output cosmosEndpoint  string = cosmos.properties.documentEndpoint
-output storageStaticSiteUrl string = 'https://${storageAccountName}.z13.web.${environment().suffixes.storageEndpointSuffix}'
+output storageStaticSiteUrl string = 'https://${storageAccountName}.z13.web.${environment().suffixes.storage}'
