@@ -1,0 +1,16 @@
+name: Daily Atlassian Sync
+
+on:
+  schedule:
+    - cron: '30 2 * * *' # Every day at 2:30 AM UTC
+
+jobs:
+  sync-atlassian-users-licenses:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST to Atlassian Users API
+        run: |
+          curl -X POST "https://license365.thefoc.io/api/GetAtlassianUsers"
+      - name: POST to Atlassian Licenses API
+        run: |
+          curl -X POST "https://license365.thefoc.io/api/GetAtlassianLicenses"

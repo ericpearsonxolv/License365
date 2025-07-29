@@ -1,0 +1,10 @@
+{
+  "parameters": {
+    "staticWebAppName": { "value": "licensingjs-app-xolv" },
+    "redisCacheName":   { "value": "dashboard-cache-xolv" },
+    "openAIName":       { "value": "licensingjs-gpt-xolv" },
+    "repositoryUrl":    { "value": "https://github.com/ericpearsonxolv/FoCLicensing.git" },
+    "branch":           { "value": "main" },
+    "customDomain":     { "value": "" }
+  }
+}

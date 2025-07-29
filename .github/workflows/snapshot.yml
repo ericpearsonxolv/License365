@@ -1,0 +1,36 @@
+name: Nightly Graph User Snapshot
+
+on:
+  schedule:
+    - cron: '0 4 * * *'   # Every day at 4am UTC
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Print working directory
+        run: pwd
+
+      - name: List all files recursively
+        run: find . -type f
+
+      - name: List .github directory
+        run: ls -al .github
+
+      - name: List .github/scripts directory
+        run: ls -al .github/scripts || echo "No .github/scripts directory"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run snapshot script
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          SNAPSHOT_API_URL: ${{ secrets.SNAPSHOT_API_URL }}
+        run: node .github/scripts/take-snapshot.js

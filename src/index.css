@@ -1,0 +1,10 @@
+/* If not using Tailwind CLI or PostCSS, import the compiled Tailwind CSS instead */
+@import 'tailwindcss/base.css';
+@import 'tailwindcss/components.css';
+@import 'tailwindcss/utilities.css';
+
+html {
+  /* Remove @apply if not processed by Tailwind/PostCSS, use regular CSS instead */
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-duration: 300ms;
+}

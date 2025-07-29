@@ -1,0 +1,43 @@
+name: Deploy to Azure (Multi-Tenant)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tenant:
+        description: 'Tenant short name (e.g. xolv, acme)'
+        required: true
+        default: 'xolv'
+      resource_group:
+        description: 'Azure Resource Group for this deployment'
+        required: true
+        default: 'xolvbicep'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set Azure Credentials Env
+        id: setcreds
+        run: |
+          if [ "${{ github.event.inputs.tenant }}" = "xolv" ]; then
+            echo "AZURE_CREDENTIALS=${{ secrets.AZURE_CREDENTIALS_XOLV }}" >> $GITHUB_ENV
+          elif [ "${{ github.event.inputs.tenant }}" = "acme" ]; then
+            echo "AZURE_CREDENTIALS=${{ secrets.AZURE_CREDENTIALS_ACME }}" >> $GITHUB_ENV
+          else
+            echo "No credentials found for tenant: ${{ github.event.inputs.tenant }}"
+            exit 1
+          fi
+
+      - name: Azure CLI login
+        uses: azure/login@v1
+        with:
+          creds: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: Deploy Bicep Template
+        run: |
+          az deployment group create \
+            --resource-group ${{ github.event.inputs.resource_group }} \
+            --template-file infra/main.bicep \
+            --parameters @infra/parameters.${{ github.event.inputs.tenant }}.json

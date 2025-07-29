@@ -1,0 +1,37 @@
+type UserSnapshot @container(name: "userSnapshots") {
+  id: ID!
+  userId: String
+  timestamp: String
+  tenantId: String
+  graphData: UserGraphData
+}
+
+type UserGraphData {
+  id: String
+  displayName: String
+  mail: String
+  userPrincipalName: String
+  accountEnabled: Boolean
+  createdDateTime: String
+  assignedLicenses: [AssignedLicense]
+  signInActivity: SignInActivity
+  department: String
+  employeeId: String
+  onLeave: Boolean
+  customSecurityAttributes: JSONObject
+  extensionAttributes: JSONObject
+  # Add other top-level Microsoft Graph User fields below as needed
+  # Everything else (unmodeled/custom fields) can be accessed via JSONObject for flexibility
+}
+
+type AssignedLicense {
+  skuId: String
+  disabledPlans: [String]
+}
+
+type SignInActivity {
+  lastSignInDateTime: String
+  lastNonInteractiveSignInDateTime: String
+}
+
+scalar JSONObject
